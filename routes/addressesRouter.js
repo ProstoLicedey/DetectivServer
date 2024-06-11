@@ -1,7 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const addresesController = require("../controller/addresesController");
-const authMiddleware = require("../middleware/authMiddleware"); // Подключаем ваш middleware
+const authMiddleware = require("../middlewares/authMiddleware"); // Подключаем ваш middleware
 
 
 router.use(authMiddleware);

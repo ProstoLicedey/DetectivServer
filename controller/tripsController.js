@@ -111,11 +111,11 @@ class TripsController {
     }
 
     async adminGet(req, res, next) {
-        const handleDisconnect = () => {
-            emitter.removeListener('newTrip', tripHandler);
-        };
+        // const handleDisconnect = () => {
+        //     emitter.removeListener('newTrip', tripHandler);
+        // };
 
-        res.on('close', handleDisconnect);
+        // res.on('close', handleDisconnect);
 
         try {
             const trips = await Trips.findAll({
@@ -192,11 +192,11 @@ class TripsController {
     }
 
     async connectAdmin(req, res, next) {
-        const handleDisconnect = () => {
-            emitter.removeListener('newTrip', tripHandler);
-        };
+        // const handleDisconnect = () => {
+        //     emitter.removeListener('newTrip', tripHandler);
+        // };
 
-        res.on('close', handleDisconnect);
+        // res.on('close', handleDisconnect);
 
         try {
             res.writeHead(200, {
