@@ -4,7 +4,7 @@ const addresesController = require("../controller/addresesController");
 const authMiddleware = require("../middlewares/authMiddleware"); // Подключаем ваш middleware
 
 
-router.use(authMiddleware);
+//router.use(authMiddleware);
 
 router.get('/',  addresesController.getAddresses);
 router.post('/', addresesController.createAddres);
