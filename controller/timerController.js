@@ -1,29 +1,25 @@
 const ApiError = require("../exeptions/apiError");
 const Timer = require("../models/timerModel");
-const Trips = require("../models/tripsModel");
-const Addresses = require("../models/addressesModel");
-const FalseTrips = require("../models/falseTripsModel");
 const events = require("events");
 
 const emitter = new events.EventEmitter();
+emitter.setMaxListeners(40);
 
 class TimerController {
     async getTimer(req, res, next) {
         try {
             const timer = await Timer.findOne({
                 order: [['createdAt', 'DESC']],
-
             });
-            return res.json(timer.timeFinish);
+            return res.json(timer ? timer.timeFinish : null);
         } catch (e) {
-            next(e)
+            next(e);
         }
     }
 
     async createTimer(req, res, next) {
         try {
-            const {hours, minutes} = req.body;
-            console.log(hours + ":" + minutes)
+            const { hours, minutes } = req.body;
             if (isNaN(hours) || isNaN(minutes)) {
                 return next(ApiError.BadRequest("Ошибка ввода таймера"));
             }
@@ -33,31 +29,24 @@ class TimerController {
             });
 
             if (timer && timer.timeFinish > new Date()) {
-                return res.status(400).json({error: 'Сейчас уже запущен таймер'});
+                return res.status(400).json({ error: 'Сейчас уже запущен таймер' });
             }
 
             let currentDate = new Date();
-
             currentDate.setHours(currentDate.getHours() + parseInt(hours, 10));
             currentDate.setMinutes(currentDate.getMinutes() + parseInt(minutes, 10));
-
 
             if (timer) {
                 await Timer.destroy({
                     where: {},
-                    truncate: true
+                    truncate: true,
                 });
             }
 
+            await Timer.create({ timeFinish: currentDate })
+                .finally(() => emitter.emit('changeTimer'));
 
-            await Timer.create({
-                timeFinish: currentDate
-            })
-                .finally(() => emitter.emit('changeTimer'))
-
-
-            return res.status(200).json({success: true, message: 'Таймер успешно создан'});
-
+            return res.status(200).json({ success: true, message: 'Таймер успешно создан' });
         } catch (e) {
             next(e);
         }
@@ -67,10 +56,10 @@ class TimerController {
         try {
             await Timer.destroy({
                 where: {},
-                truncate: true
+                truncate: true,
             })
-                .finally(() => emitter.emit('changeTimer'))
-            return res.status(200).json({success: true, message: 'Таймер успешно удален'});
+                .finally(() => emitter.emit('changeTimer'));
+            return res.status(200).json({ success: true, message: 'Таймер успешно удален' });
         } catch (e) {
             next(e);
         }
@@ -84,7 +73,7 @@ class TimerController {
                 'Cache-Control': 'no-cache',
             });
 
-            emitter.on('changeTimer', async () => {
+            const changeTimerHandler = async () => {
                 try {
                     const timer = await Timer.findOne({
                         order: [['createdAt', 'DESC']],
@@ -96,19 +85,21 @@ class TimerController {
                         res.write(`data: ${timer.timeFinish} \n\n`);
                     }
                 } catch (error) {
-                    // Handle database query error
                     console.error("Error fetching timer:", error);
                     res.write(`data: null \n\n`);
                 }
+            };
+
+            emitter.on('changeTimer', changeTimerHandler);
+
+            req.on('close', () => {
+                emitter.removeListener('changeTimer', changeTimerHandler);
             });
 
         } catch (e) {
             next(ApiError.BadRequest(e));
         }
     }
-
-
 }
 
-module
-    .exports = new TimerController()
+module.exports = new TimerController();

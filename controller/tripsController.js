@@ -9,12 +9,10 @@ const events = require('events')
 const userService = require("../service/userService");
 
 const emitter = new events.EventEmitter();
-
+emitter.setMaxListeners(40);
 class TripsController {
     async create(req, res, next) {
         try {
-            console.log('start create')
-
             let {id, district, number} = req.body;
 
             district = district.trim();
@@ -113,6 +111,12 @@ class TripsController {
     }
 
     async adminGet(req, res, next) {
+        const handleDisconnect = () => {
+            emitter.removeListener('newTrip', tripHandler);
+        };
+
+        res.on('close', handleDisconnect);
+
         try {
             const trips = await Trips.findAll({
                 include: [
@@ -188,6 +192,12 @@ class TripsController {
     }
 
     async connectAdmin(req, res, next) {
+        const handleDisconnect = () => {
+            emitter.removeListener('newTrip', tripHandler);
+        };
+
+        res.on('close', handleDisconnect);
+
         try {
             res.writeHead(200, {
                 'Connection': 'keep-alive',
@@ -195,7 +205,7 @@ class TripsController {
                 'Cache-Control': 'no-cache',
             });
 
-            emitter.on('newTrip', async (id) => {
+            const tripHandler = async (id) => {
                 const trips = await Trips.findAll({
                     include: [
                         {model: Addresses},
@@ -224,11 +234,14 @@ class TripsController {
                 });
 
                 res.write(`data: ${JSON.stringify(formattedTrips)} \n\n`);
-            });
+            };
+
+            emitter.on('newTrip', tripHandler);
         } catch (e) {
             next(ApiError.BadRequest(e));
         }
     }
+
 
 }
 

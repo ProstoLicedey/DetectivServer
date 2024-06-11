@@ -4,10 +4,11 @@ const sequelize = require('./models/db')
 const cors = require('cors')
 const router = require('./routes/index')
 const cookieParser = require('cookie-parser')
-const PORT = process.env.PORT || 5000
-const errorMiddleware = require('./middlewares/errorMiddleware')
-const path = require("path");
+const path = require("path")
 const fileUpload = require('express-fileupload')
+const errorMiddleware = require('./middlewares/errorMiddleware')
+
+const PORT = process.env.PORT || 5000
 
 const addresesModel = require('./models/addressesModel')
 const timerModel = require('./models/timerModel')
@@ -16,34 +17,41 @@ const tripsModel = require('./models/tripsModel')
 const usersModel = require('./models/usersModel')
 const falseTrips = require('./models/falseTripsModel')
 
-
 const app = express()
 app.use(express.static(path.resolve(__dirname, 'static')))
 app.use(fileUpload({}))
 app.use(cookieParser())
+
+// Проверка на наличие CLIENT_URL
+if (!process.env.CLIENT_URL) {
+    console.error('CLIENT_URL is not defined in the environment variables.')
+    process.exit(1)
+}
+
+
 app.use(cors({
     credentials: true,
-    origin: [process.env.CLIENT_URL]
+    origin: [process.env.CLIENT_URL, "http://localhost:3000/"]
 }))
+
 app.use(express.json())
 app.use('/api', router)
-
-
 app.use(errorMiddleware)
 
 app.get('/', (req, res) => {
-    res.status(200).json({message: 'good'})
+    res.status(200).json({ message: 'good' })
 })
 
 const start = async () => {
     try {
         await sequelize.authenticate()
+        console.log('Database authenticated successfully.')
         await sequelize.sync()
-        app.listen(PORT, () => console.log(`Server started on port${PORT}`))
+        console.log('Database synced successfully.')
+        app.listen(PORT, () => console.log(`Server started on port ${PORT}`))
     } catch (e) {
-        console.log(e)
+        console.error('Unable to connect to the database:', e)
     }
 }
 
 start()
-
