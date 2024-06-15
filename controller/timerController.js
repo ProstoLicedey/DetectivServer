@@ -21,7 +21,7 @@ class TimerController {
         try {
             const { hours, minutes } = req.body;
             if (isNaN(hours) || isNaN(minutes)) {
-                return next(ApiError.BadRequest("Ошибка ввода таймера"));
+                return res.status(400).json({ error: "Ошибка ввода таймера"});
             }
 
             const timer = await Timer.findOne({
