@@ -22,10 +22,6 @@ class TripsController {
                 return next(ApiError.BadRequest("не все поля заполнены"));
             }
 
-            const timer = await Timer.findOne({
-                order: [['createdAt', 'DESC']],
-            });
-
             await timerService.checkTime();
 
             let address = await Addresses.findOne({
