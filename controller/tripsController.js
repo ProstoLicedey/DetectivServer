@@ -24,16 +24,7 @@ class TripsController {
 
             await timerService.checkTime();
 
-            const [address, existingTrips] = await Promise.all([
-                Addresses.findOne({ where: { district, number } }),
-                Trips.findAll({
-                    where: { userId: id },
-                    include: [
-                        { model: Addresses },
-                        { model: FalseTrips }
-                    ],
-                })
-            ]);
+            const address = await Addresses.findOne({ where: { district, number } });
 
             let trip;
             if (!address) {
@@ -45,8 +36,7 @@ class TripsController {
 
             setImmediate(() => emitter.emit('newTrip', trip.id));
 
-            existingTrips.push(trip);
-            return res.status(200).json(existingTrips);
+            return res.status(200).json(trip);
         } catch (e) {
             next(ApiError.BadRequest(e.message));
         }
