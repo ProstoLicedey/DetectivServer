@@ -15,7 +15,6 @@ class TripsController {
         try {
             let { id, district, number } = req.body;
 
-            // Раннее обрезание входных данных
             if (!id || !district || !number) {
                 return next(ApiError.BadRequest("не все поля заполнены"));
             }
@@ -25,7 +24,6 @@ class TripsController {
 
             await timerService.checkTime();
 
-            // Поиск адреса и существующих поездок параллельно
             const [address, existingTrips] = await Promise.all([
                 Addresses.findOne({ where: { district, number } }),
                 Trips.findAll({
@@ -45,10 +43,8 @@ class TripsController {
                 trip = await Trips.create({ userId: id, addressId: address.id });
             }
 
-            // Генерация события новой поездки
-            emitter.emit('newTrip', trip.id);
+            setImmediate(() => emitter.emit('newTrip', trip.id));
 
-            // Ответ с существующими поездками, включая новую
             existingTrips.push(trip);
             return res.status(200).json(existingTrips);
         } catch (e) {
@@ -71,7 +67,7 @@ class TripsController {
             trip.issued = true;
             await trip.save();
 
-            emitter.emit('newTrip')
+            setImmediate(() => emitter.emit('newTrip', trip.id));
             return res.status(200).json(trip);
         } catch (e) {
 
@@ -188,12 +184,6 @@ class TripsController {
     }
 
     async connectAdmin(req, res, next) {
-        // const handleDisconnect = () => {
-        //     emitter.removeListener('newTrip', tripHandler);
-        // };
-
-        // res.on('close', handleDisconnect);
-
         try {
             res.writeHead(200, {
                 'Connection': 'keep-alive',
@@ -202,42 +192,50 @@ class TripsController {
             });
 
             const tripHandler = async (id) => {
-                const trips = await Trips.findAll({
-                    include: [
-                        {model: Addresses},
-                        {model: FalseTrips},
-                        {model: Users},
-                    ],
-                    order: [['createdAt', 'DESC']]
-                });
+                try {
+                    const trips = await Trips.findAll({
+                        attributes: ['id', 'userId', 'addressId', 'createdAt', 'issued'],
+                        include: [
+                            { model: Addresses, attributes: ['district', 'number', 'title', 'appendix'] },
+                            { model: FalseTrips, attributes: ['district', 'number'] },
+                            { model: Users, attributes: ['login'] },
+                        ],
+                        order: [['createdAt', 'DESC']]
+                    });
 
-                const formattedTrips = trips.map(trip => {
-                    const id = trip.id;
-                    const team = trip.user.login;
-                    const appendix = trip.address && trip.address.appendix != null ? "ПРИЛОЖЕНИЕ " + trip.address.appendix : null;
-                    const address = trip.address ? `${trip.address.district}-${trip.address.number}: ${trip.address.title}` : `${trip.falseTrips[0].district}-${trip.falseTrips[0].number}`;
-                    let status;
-                    const issued = appendix ? trip.issued : null;
-                    if (!trip.address) {
-                        status = '#4C2D30';
-                    } else if (appendix !== null && issued === false) {
-                        status = '#614700';
-                    } else {
-                        status = '#2B2D30';
-                    }
+                    const formattedTrips = trips.map(trip => {
+                        const id = trip.id;
+                        const team = trip.user.login;
+                        const appendix = trip.address && trip.address.appendix != null ? "ПРИЛОЖЕНИЕ " + trip.address.appendix : null;
+                        const address = trip.address ? `${trip.address.district}-${trip.address.number}: ${trip.address.title}` : `${trip.falseTrips[0].district}-${trip.falseTrips[0].number}`;
+                        let status;
+                        const issued = appendix ? trip.issued : null;
+                        if (!trip.address) {
+                            status = '#4C2D30';
+                        } else if (appendix !== null && issued === false) {
+                            status = '#614700';
+                        } else {
+                            status = '#2B2D30';
+                        }
 
-                    return {id, team, address, appendix, issued, status};
-                });
+                        return {id, team, address, appendix, issued, status};
+                    });
 
-                res.write(`data: ${JSON.stringify(formattedTrips)} \n\n`);
+                    res.write(`data: ${JSON.stringify(formattedTrips)} \n\n`);
+                } catch (error) {
+                    console.error('Error in tripHandler:', error);
+                }
             };
 
             emitter.on('newTrip', tripHandler);
+
+            req.on('close', () => {
+                emitter.off('newTrip', tripHandler);
+            });
         } catch (e) {
             next(ApiError.BadRequest(e));
         }
     }
-
 
 }
 
