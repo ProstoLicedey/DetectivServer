@@ -13,46 +13,46 @@ emitter.setMaxListeners(40);
 class TripsController {
     async create(req, res, next) {
         try {
-            let {id, district, number} = req.body;
+            let { id, district, number } = req.body;
+
+            // Раннее обрезание входных данных
+            if (!id || !district || !number) {
+                return next(ApiError.BadRequest("не все поля заполнены"));
+            }
 
             district = district.trim();
             number = number.trim();
 
-            if (id === undefined || id === null || district === undefined || district === null || number === undefined || number === null) {
-                return next(ApiError.BadRequest("не все поля заполнены"));
-            }
-
             await timerService.checkTime();
 
-            let address = await Addresses.findOne({
-                where: {district, number}
-            });
+            // Поиск адреса и существующих поездок параллельно
+            const [address, existingTrips] = await Promise.all([
+                Addresses.findOne({ where: { district, number } }),
+                Trips.findAll({
+                    where: { userId: id },
+                    include: [
+                        { model: Addresses },
+                        { model: FalseTrips }
+                    ],
+                })
+            ]);
 
             let trip;
-
-            if (address == null) {
-                trip = await Trips.create({userId: id});
-                const falseTrips = await FalseTrips.create({tripId: trip.id, district, number});
+            if (!address) {
+                trip = await Trips.create({ userId: id });
+                await FalseTrips.create({ tripId: trip.id, district, number });
             } else {
-                trip = await Trips.create({userId: id, addressId: address.id});
-
+                trip = await Trips.create({ userId: id, addressId: address.id });
             }
-            const response = await Trips.findAll({
-                where: {userId: id},
-                include: [
-                    {
-                        model: Addresses,
-                    },
-                    {
-                        model: FalseTrips,
-                    },
 
-                ],
-            });
-            emitter.emit('newTrip', trip.id)
-            return res.status(200).json(response)
+            // Генерация события новой поездки
+            emitter.emit('newTrip', trip.id);
+
+            // Ответ с существующими поездками, включая новую
+            existingTrips.push(trip);
+            return res.status(200).json(existingTrips);
         } catch (e) {
-            next(ApiError.BadRequest(e));
+            next(ApiError.BadRequest(e.message));
         }
     }
 
