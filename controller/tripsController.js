@@ -184,6 +184,7 @@ class TripsController {
     }
 
     async connectAdmin(req, res, next) {
+
         try {
             res.writeHead(200, {
                 'Connection': 'keep-alive',
@@ -192,50 +193,43 @@ class TripsController {
             });
 
             const tripHandler = async (id) => {
-                try {
-                    const trips = await Trips.findAll({
-                        attributes: ['id', 'userId', 'addressId', 'createdAt', 'issued'],
-                        include: [
-                            { model: Addresses, attributes: ['district', 'number', 'title', 'appendix'] },
-                            { model: FalseTrips, attributes: ['district', 'number'] },
-                            { model: Users, attributes: ['login'] },
-                        ],
-                        order: [['createdAt', 'DESC']]
-                    });
+                const trips = await Trips.findAll({
+                    attributes: ['id', 'userId', 'addressId', 'createdAt', 'issued'],
+                    include: [
+                        { model: Addresses, attributes: ['district', 'number', 'title', 'appendix'] },
+                        { model: FalseTrips, attributes: ['district', 'number'] },
+                        { model: Users, attributes: ['login'] },
+                    ],
+                    order: [['createdAt', 'DESC']]
+                });
 
-                    const formattedTrips = trips.map(trip => {
-                        const id = trip.id;
-                        const team = trip.user.login;
-                        const appendix = trip.address && trip.address.appendix != null ? "ПРИЛОЖЕНИЕ " + trip.address.appendix : null;
-                        const address = trip.address ? `${trip.address.district}-${trip.address.number}: ${trip.address.title}` : `${trip.falseTrips[0].district}-${trip.falseTrips[0].number}`;
-                        let status;
-                        const issued = appendix ? trip.issued : null;
-                        if (!trip.address) {
-                            status = '#4C2D30';
-                        } else if (appendix !== null && issued === false) {
-                            status = '#614700';
-                        } else {
-                            status = '#2B2D30';
-                        }
+                const formattedTrips = trips.map(trip => {
+                    const id = trip.id;
+                    const team = trip.user.login;
+                    const appendix = trip.address && trip.address.appendix != null ? "ПРИЛОЖЕНИЕ " + trip.address.appendix : null;
+                    const address = trip.address ? `${trip.address.district}-${trip.address.number}: ${trip.address.title}` : `${trip.falseTrips[0].district}-${trip.falseTrips[0].number}`;
+                    let status;
+                    const issued = appendix ? trip.issued : null;
+                    if (!trip.address) {
+                        status = '#4C2D30';
+                    } else if (appendix !== null && issued === false) {
+                        status = '#614700';
+                    } else {
+                        status = '#2B2D30';
+                    }
 
-                        return {id, team, address, appendix, issued, status};
-                    });
+                    return {id, team, address, appendix, issued, status};
+                });
 
-                    res.write(`data: ${JSON.stringify(formattedTrips)} \n\n`);
-                } catch (error) {
-                    console.error('Error in tripHandler:', error);
-                }
+                res.write(`data: ${JSON.stringify(formattedTrips)} \n\n`);
             };
 
             emitter.on('newTrip', tripHandler);
-
-            req.on('close', () => {
-                emitter.off('newTrip', tripHandler);
-            });
         } catch (e) {
             next(ApiError.BadRequest(e));
         }
     }
+
 
 }
 

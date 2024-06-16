@@ -8,10 +8,9 @@ const addressesRouter = require('./addressesRouter')
 
 
 router.use('/timer', timerRouter)
-router.use('/addresses', addressesRouter)
 router.use('/trips', tripsRouter)
 router.use('/user', userRouter)
-
+router.use('/addresses', addressesRouter)
 
 
 module.exports = router
