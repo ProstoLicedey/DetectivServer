@@ -15,7 +15,8 @@ const timerModel = require('./models/timerModel')
 const tokenModel = require('./models/tokenModel')
 const tripsModel = require('./models/tripsModel')
 const usersModel = require('./models/usersModel')
-const falseTrips = require('./models/falseTripsModel')
+const question = require('./models/questionModel');
+const answer = require('./models/answerModel');
 
 const app = express()
 app.use(express.static(path.resolve(__dirname, 'static')))

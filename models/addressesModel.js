@@ -10,6 +10,7 @@ const Addresses = sequelize.define('addresses', {
     appendix: { type: DataTypes.INTEGER }
 });
 
+
 (async () => {
     try {
         await Addresses.sync(); // Создаем таблицу, если ее нет
@@ -20,7 +21,8 @@ const Addresses = sequelize.define('addresses', {
                 number: '0',
                 title: 'Пробная поездка',
                 info: "Ура! \n Вы успешно совершили пробную поездку.",
-                appendix: 0
+                appendix: 0,
+                gameId: null
             });
             console.log('Пробная поездка создана:', address);
         } else {

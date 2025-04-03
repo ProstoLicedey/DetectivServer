@@ -8,7 +8,6 @@ const User = sequelize.define('user', {
     role: { type: DataTypes.STRING, allowNull: false }
 });
 
-
 (async () => {
     try {
         await User.sync(); // Создаем таблицу, если ее нет
