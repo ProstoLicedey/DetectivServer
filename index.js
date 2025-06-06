@@ -32,14 +32,8 @@ if (!process.env.CLIENT_URL) {
 
 app.use(cors({
     credentials: true,
-    origin: [
-        process.env.CLIENT_URL,
-        'http://31.129.57.26:3000',
-        'http://merop.ru',
-        "http://merop.ru:3000",
-        /http:\/\/localhost(:\d+)?/  // Разрешение всех локальных хостов
-    ]
-}));
+    origin: [process.env.CLIENT_URL, 'http://93.189.228.18/',  'http://93.189.228.18',]
+}))
 
 app.use(express.json())
 app.use('/api', router)
