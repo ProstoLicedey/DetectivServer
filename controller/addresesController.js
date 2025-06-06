@@ -54,6 +54,7 @@ class AddressesController {
         } catch (e) {
             next(ApiError.BadRequest(e));
         }
+
     }
 
 

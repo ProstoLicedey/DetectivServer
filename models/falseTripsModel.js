@@ -16,6 +16,7 @@ const FalseTrips = sequelize.define('falseTrips', {
     },
 });
 
+
 Trips.hasMany(FalseTrips, { onDelete: 'CASCADE' });
 FalseTrips.belongsTo(Trips);
 

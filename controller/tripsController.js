@@ -214,6 +214,7 @@ class TripsController {
                 res.write(`data: ${JSON.stringify(formattedTrips)} \n\n`);
             };
 
+
             emitter.on('newTrip', tripHandler);
         } catch (e) {
             next(ApiError.BadRequest(e));

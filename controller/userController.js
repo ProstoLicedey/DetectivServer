@@ -23,6 +23,11 @@ class UserController {
         } catch (e) {
             next(ApiError.BadRequest(e));
         }
+
+        await Users.update(
+            { age: 26 },
+            { where: { id: 1 } }
+        );
     }
 
     async login(req, res, next) {
@@ -65,59 +70,62 @@ class UserController {
     async team(req, res, next) {
         try {
             const users = await Users.findAll({
-                where: {role: 'user'},
+                where: { role: 'user' },
                 include: [
                     {
                         model: Trips,
                         include: [
-                            {
-                                model: Addresses,
-                            },
-                            {
-                                model: FalseTrips,
-                            },
+                            { model: Addresses },
+                            { model: FalseTrips },
                         ],
                     },
                     {
                         model: Answer,
                         include: [
-                            {
-                                model: Question,
-                                attributes: ['numberPoints'],
-                            },
+                            { model: Question, attributes: ['numberPoints'] },
                         ],
                     },
                 ],
-                order: [['id', 'DESC']]
+                order: [['id', 'DESC']],
             });
+
+            const processTrips = (trips) => {
+                const goodTripCount = trips.filter(trip => trip.address && typeof trip.address === 'object').length;
+                const falseTripCount = trips.filter(trip => trip.falseTrips && trip.falseTrips.length > 0).length;
+                const issuedCount = trips.filter(trip => trip.issued === true).length;
+                const appendixNeedCount = trips.filter(trip => trip.address && trip.address.appendix != null).length;
+                return { goodTripCount, falseTripCount, issuedCount, appendixNeedCount };
+            };
+
+            const processAnswers = (answers) => {
+                let totalPoints = 0;
+                let allAnswersNull = true;
+
+                answers.forEach(answer => {
+                    if (answer.pointsAwarded !== null) {
+                        allAnswersNull = false;
+                        totalPoints += answer.pointsAwarded;
+                    }
+                });
+
+                return allAnswersNull ? "Ответы не проверенны" : totalPoints;
+            };
 
             const result = users.map(user => {
                 const trips = user.trips || [];
-                const goodTripCount = trips.filter(trip => trip.address && typeof trip.address === 'object');
-                const falseTripCount = trips.filter(trip => trip.falseTrips && trip.falseTrips.length > 0);
-                const issuedCount = trips.filter(trip => trip.issued == true);
-                const appendixNeedCount = trips.filter(trip => trip.address && trip.address.appendix != null);
+                const { goodTripCount, falseTripCount, issuedCount, appendixNeedCount } = processTrips(trips);
+                const totalPoints = user.answers?.length ? processAnswers(user.answers) : "Ответы не даны";
 
-                if (!user.answers || user.answers.length === 0) {
-                    return {
-                        trips,
-                        login: user.login,
-                        id: user.id,
-                        password: user.password,
-                        tripCount: trips.length,
-                        goodTripCount: goodTripCount.length,
-                        appendix: issuedCount.length + "/" + appendixNeedCount.length,
-                        falseTripCount: falseTripCount.length,
-                        result: "Ответы еще не даны",
-                    };
-                }
 
-                const totalPoints = user.answers.reduce((sum, answer) => {
-                    if (answer.pointsAwarded === null) {
-                        return "Ответы еще не проверенны";
+                let resultBall = "-";
+
+                if (typeof totalPoints === 'number' && trips.length > 0) {
+                    resultBall = (((totalPoints * totalPoints) + appendixNeedCount) / trips.length).toFixed(1);
+
+                    if (!isFinite(resultBall)) {
+                        resultBall = "-";
                     }
-                    return sum + (answer.question ? answer.question.numberPoints : 0);
-                }, 0);
+                }
 
                 return {
                     trips,
@@ -125,12 +133,17 @@ class UserController {
                     id: user.id,
                     password: user.password,
                     tripCount: trips.length,
-                    goodTripCount: goodTripCount.length,
-                    appendix: issuedCount.length + "/" + appendixNeedCount.length,
-                    falseTripCount: falseTripCount.length,
-                    result: totalPoints,
+                    goodTripCount,
+                    appendix: `${issuedCount}/${appendixNeedCount}`,
+                    falseTripCount,
+                    answer: totalPoints,
+                    resultBall,
                 };
             });
+
+            if (result.length === 0) {
+                return res.json({ answer: "Ответы не даны" });
+            }
 
             return res.json(result);
         } catch (e) {
@@ -140,7 +153,7 @@ class UserController {
 
 
 
-async delete(req, res, next) {
+    async delete(req, res, next) {
         try {
             const {id} = req.params;
             await Users.destroy({where: {id}});
