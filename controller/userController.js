@@ -178,7 +178,7 @@ class UserController {
         } catch (e) {
             next(ApiError.BadRequest(e));
         }
-
+    }
 
     async delete(req, res, next) {
         try {
