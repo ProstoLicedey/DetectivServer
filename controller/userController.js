@@ -90,23 +90,54 @@ class UserController {
             });
 
             const processTrips = (trips) => {
-                const goodTripCount = trips.filter(trip => trip.address && typeof trip.address === 'object').length;
-                const falseTripCount = trips.filter(trip => trip.falseTrips && trip.falseTrips.length > 0).length;
-                const issuedCount = trips.filter(trip => trip.issued === true).length;
-                const appendixNeedCount = trips.filter(trip => trip.address && trip.address.appendix != null).length;
-                return { goodTripCount, falseTripCount, issuedCount, appendixNeedCount };
+                const uniqueAddresses = new Set();
+                const uniqueIssuedAddresses = new Set();
+                const uniqueAppendixAddresses = new Set();
+
+                let falseTripCount = 0;
+
+                for (const trip of trips) {
+                    if (trip.address && trip.address.id != null) {
+                        uniqueAddresses.add(trip.address.id);
+
+                        if (trip.issued === true) {
+                            uniqueIssuedAddresses.add(trip.address.id);
+                        }
+
+                        if (trip.address.appendix != null) {
+                            uniqueAppendixAddresses.add(trip.address.id);
+                        }
+                    }
+
+                    if (trip.falseTrips && trip.falseTrips.length > 0) {
+                        falseTripCount++;
+                    }
+                }
+
+                return {
+                    goodTripCount: uniqueAddresses.size,
+                    falseTripCount,
+                    issuedCount: uniqueIssuedAddresses.size,
+                    appendixNeedCount: uniqueAppendixAddresses.size,
+                };
             };
 
             const processAnswers = (answers) => {
                 let totalPoints = 0;
                 let allAnswersNull = true;
+                const seenQuestions = new Set();
 
-                answers.forEach(answer => {
-                    if (answer.pointsAwarded !== null) {
+                for (const answer of answers) {
+                    if (
+                        answer.pointsAwarded !== null &&
+                        answer.questionId != null &&
+                        !seenQuestions.has(answer.questionId)
+                    ) {
+                        seenQuestions.add(answer.questionId);
                         allAnswersNull = false;
                         totalPoints += answer.pointsAwarded;
                     }
-                });
+                }
 
                 return allAnswersNull ? "Ответы не проверенны" : totalPoints;
             };
@@ -116,9 +147,7 @@ class UserController {
                 const { goodTripCount, falseTripCount, issuedCount, appendixNeedCount } = processTrips(trips);
                 const totalPoints = user.answers?.length ? processAnswers(user.answers) : "Ответы не даны";
 
-
                 let resultBall = "-";
-
                 if (typeof totalPoints === 'number' && trips.length > 0) {
                     resultBall = (((totalPoints * totalPoints) + appendixNeedCount) / trips.length).toFixed(1);
 
@@ -149,8 +178,6 @@ class UserController {
         } catch (e) {
             next(ApiError.BadRequest(e));
         }
-    }
-
 
 
     async delete(req, res, next) {
